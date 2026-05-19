@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TutorHub - Khảo sát Lịch học</title>
+    <style>
+      :root {
+        --primary: #7c3aed;
+        --primary-light: #ede9fe;
+        --success: #10b981;
+        --text-main: #1e293b;
+        --text-muted: #64748b;
+        --border: #e5e7eb;
+      }
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f8fafc;
+        color: var(--text-main);
+        display: flex;
+        justify-content: center;
+        padding: 40px 20px;
+        margin: 0;
+      }
+      .container {
+        background: white;
+        padding: 30px;
+        border-radius: 16px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+        width: 100%;
+        max-width: 800px;
+      }
+      .header {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+      .header h1 {
+        color: var(--primary);
+        margin: 0 0 10px 0;
+      }
+      .header p {
+        color: var(--text-muted);
+        margin: 0;
+      }
+      .user-info {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+      .user-info input {
+        flex: 1;
+        padding: 12px 15px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 15px;
+        outline: none;
+      }
+      .user-info input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px var(--primary-light);
+      }
+      .grid-container {
+        display: flex;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow-x: auto;
+        user-select: none;
+      }
+      .time-col {
+        width: 80px;
+        background: #f8fafc;
+        border-right: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+      .day-col {
+        flex: 1;
+        min-width: 100px;
+        border-right: 1px solid var(--border);
+      }
+      .day-col:last-child {
+        border-right: none;
+      }
+      .cell-header {
+        height: 50px;
+        background: #f1f5f9;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 13px;
+        color: var(--text-main);
+        text-align: center;
+      }
+      .cell {
+        height: 30px;
+        border-bottom: 1px dashed #e2e8f0;
+        cursor: pointer;
+      }
+      .time-col .cell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--border);
+        height: 61px;
+        background: #f8fafc;
+      }
+      .cell.selected {
+        background-color: var(--success);
+        border-bottom: 1px solid #059669;
+      }
+      .day-col .cell:hover:not(.selected) {
+        background-color: #f0fdf4;
+      }
+      .btn-submit {
+        width: 100%;
+        padding: 14px;
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: bold;
+        margin-top: 25px;
+        cursor: pointer;
+      }
+      .btn-submit:hover {
+        background-color: #6d28d9;
+      }
+      #loading {
+        text-align: center;
+        font-size: 18px;
+        color: var(--text-muted);
+        padding: 50px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="loading">🔄 Đang tải thông tin khảo sát lịch...</div>
+
+      <div id="mainContent" style="display: none">
+        <div class="header">
+          <h1 id="pollTitle">Khảo sát Lịch học</h1>
+          <p id="pollDesc">Vui lòng chọn thời gian rảnh của bạn</p>
+        </div>
+
+        <div class="user-info">
+          <input
+            type="text"
+            id="voterName"
+            placeholder="Tên của bạn (Bắt buộc)"
+          />
+          <input
+            type="email"
+            id="voterEmail"
+            placeholder="Email (Không bắt buộc)"
+          />
+        </div>
+
+        <div class="grid-container" id="pollGrid"></div>
+
+        <button class="btn-submit" onclick="submitVote()">
+          Gửi thời gian rảnh của tôi
+        </button>
+      </div>
+    </div>
+
+    <script>
+      // ==========================================
+      // ⚠️ DÁN ĐƯỜNG LINK BACKEND RENDER CỦA BẠN VÀO ĐÂY
+      // ==========================================
+      const BACKEND_URL = "https://tutorhub-poll-api.onrender.com";
+
+      let globalPollId = null;
+      let isDragging = false;
+      let isSelecting = true;
+
+      // Lấy mã unique_code từ tham số URL (?code=XXXXXX)
+      const urlParams = new URLSearchParams(window.location.search);
+      const pollCode = urlParams.get("code");
+
+      if (!pollCode) {
+        document.getElementById("loading").innerHTML =
+          "❌ Đường link không hợp lệ! Thiếu mã code khảo sát.";
+      } else {
+        loadPollData();
+      }
+
+      // Hàm gọi API lấy dữ liệu từ Render
+      async function loadPollData() {
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/poll/${pollCode}`);
+          if (!response.ok) throw new Error();
+          const pollData = await response.json();
+
+          globalPollId = pollData.poll_id;
+          document.getElementById("pollTitle").innerText = pollData.title;
+          document.getElementById("pollDesc").innerText =
+            pollData.description ||
+            "Kéo chuột bôi xanh những khung giờ bạn rảnh nhé!";
+
+          const days = JSON.parse(pollData.date_list); // Giải mã mảng JSON ngày
+          const startH = parseInt(pollData.start_time.split(":")[0]);
+          const endH = parseInt(pollData.end_time.split(":")[0]);
+
+          renderGrid(days, startH, endH);
+
+          document.getElementById("loading").style.display = "none";
+          document.getElementById("mainContent").style.display = "block";
+        } catch (err) {
+          document.getElementById("loading").innerHTML =
+            "❌ Không tìm thấy cuộc khảo sát hoặc lỗi kết nối máy chủ!";
+        }
+      }
+
+      // Hàm vẽ ô lưới lưới tự động
+      function renderGrid(days, startHour, endHour) {
+        const gridContainer = document.getElementById("pollGrid");
+
+        // Vẽ cột giờ bên trái
+        let timeColHtml = `<div class="time-col"><div class="cell-header">Giờ</div>`;
+        for (let h = startHour; h < endHour; h++) {
+          timeColHtml += `<div class="cell">${String(h).padStart(2, "0")}:00</div>`;
+        }
+        timeColHtml += `</div>`;
+        gridContainer.innerHTML += timeColHtml;
+
+        // Vẽ các cột ngày rảnh
+        days.forEach((day) => {
+          // Format ngày hiển thị ngắn gọn
+          let dateObj = new Date(day);
+          let formattedDay = dateObj.toLocaleDateString("vi-VN", {
+            weekday: "short",
+            day: "numeric",
+            month: "numeric",
+          });
+
+          let dayColHtml = `<div class="day-col"><div class="cell-header">${formattedDay}</div>`;
+          for (let h = startHour; h < endHour; h++) {
+            dayColHtml += `<div class="cell poll-cell" data-time="${day} ${String(h).padStart(2, "0")}:00"></div>`;
+            dayColHtml += `<div class="cell poll-cell" data-time="${day} ${String(h).padStart(2, "0")}:30"></div>`;
+          }
+          dayColHtml += `</div>`;
+          gridContainer.innerHTML += dayColHtml;
+        });
+
+        setupDragEvents();
+      }
+
+      function setupDragEvents() {
+        document.addEventListener("mousedown", (e) => {
+          if (e.target.classList.contains("poll-cell")) {
+            isDragging = true;
+            isSelecting = !e.target.classList.contains("selected");
+            e.target.classList.toggle("selected", isSelecting);
+          }
+        });
+
+        document.addEventListener("mouseover", (e) => {
+          if (isDragging && e.target.classList.contains("poll-cell")) {
+            e.target.classList.toggle("selected", isSelecting);
+          }
+        });
+
+        document.addEventListener("mouseup", () => (isDragging = false));
+      }
+
+      // Hàm gọi API gửi kết quả ngược lại lên Render
+      async function submitVote() {
+        const name = document.getElementById("voterName").value.trim();
+        const email = document.getElementById("voterEmail").value.trim();
+
+        if (!name) {
+          alert("Vui lòng nhập tên của bạn!");
+          return;
+        }
+
+        const selectedCells = document.querySelectorAll(".poll-cell.selected");
+        const slots = [];
+        selectedCells.forEach((cell) =>
+          slots.push(cell.getAttribute("data-time")),
+        );
+
+        if (slots.length === 0) {
+          alert("Bạn chưa bôi đen khung giờ nào rảnh cả!");
+          return;
+        }
+
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/vote`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              poll_id: globalPollId,
+              voter_name: name,
+              voter_email: email,
+              available_slots: slots,
+            }),
+          });
+
+          const resData = await response.json();
+          if (resData.success) {
+            alert(
+              "🎉 Tuyệt vời! Lịch rảnh của bạn đã được gửi tới Gia sư thành công.",
+            );
+          } else {
+            alert("❌ Có lỗi xảy ra khi gửi dữ liệu.");
+          }
+        } catch (err) {
+          alert("❌ Lỗi kết nối đến Server API!");
+        }
+      }
+    </script>
+  </body>
+</html>
