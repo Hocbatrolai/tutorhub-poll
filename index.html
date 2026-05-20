@@ -1,318 +1,483 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TutorHub - Khảo sát Lịch học</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Khảo sát lịch học - TutorHub Enterprise</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-      :root {
-        --primary: #7c3aed;
-        --primary-light: #ede9fe;
-        --success: #10b981;
-        --text-main: #1e293b;
-        --text-muted: #64748b;
-        --border: #e5e7eb;
-      }
-      body {
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        background-color: #f8fafc;
-        color: var(--text-main);
-        display: flex;
-        justify-content: center;
-        padding: 40px 20px;
-        margin: 0;
-      }
-      .container {
-        background: white;
-        padding: 30px;
-        border-radius: 16px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-        width: 100%;
-        max-width: 800px;
-      }
-      .header {
-        text-align: center;
-        margin-bottom: 30px;
-      }
-      .header h1 {
-        color: var(--primary);
-        margin: 0 0 10px 0;
-      }
-      .header p {
-        color: var(--text-muted);
-        margin: 0;
-      }
-      .user-info {
-        display: flex;
-        gap: 15px;
-        margin-bottom: 20px;
-      }
-      .user-info input {
-        flex: 1;
-        padding: 12px 15px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        font-size: 15px;
-        outline: none;
-      }
-      .user-info input:focus {
-        border-color: var(--primary);
-        box-shadow: 0 0 0 3px var(--primary-light);
-      }
-      .grid-container {
-        display: flex;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        overflow-x: auto;
-        user-select: none;
-      }
-      .time-col {
-        width: 80px;
-        background: #f8fafc;
-        border-right: 1px solid var(--border);
-        flex-shrink: 0;
-      }
-      .day-col {
-        flex: 1;
-        min-width: 100px;
-        border-right: 1px solid var(--border);
-      }
-      .day-col:last-child {
-        border-right: none;
-      }
-      .cell-header {
-        height: 50px;
-        background: #f1f5f9;
-        border-bottom: 1px solid var(--border);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        font-size: 13px;
-        color: var(--text-main);
-        text-align: center;
-      }
-      .cell {
-        height: 30px;
-        border-bottom: 1px dashed #e2e8f0;
-        cursor: pointer;
-      }
-      .time-col .cell {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 12px;
-        color: var(--text-muted);
-        border-bottom: 1px solid var(--border);
-        height: 61px;
-        background: #f8fafc;
-      }
-      .cell.selected {
-        background-color: var(--success);
-        border-bottom: 1px solid #059669;
-      }
-      .day-col .cell:hover:not(.selected) {
-        background-color: #f0fdf4;
-      }
-      .btn-submit {
-        width: 100%;
-        padding: 14px;
-        background-color: var(--primary);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-size: 16px;
-        font-weight: bold;
-        margin-top: 25px;
-        cursor: pointer;
-      }
-      .btn-submit:hover {
-        background-color: #6d28d9;
-      }
-      #loading {
-        text-align: center;
-        font-size: 18px;
-        color: var(--text-muted);
-        padding: 50px 0;
-      }
+        body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Tooltip custom cho Heatmap */
+        .tooltip .tooltip-text {
+            visibility: hidden; background-color: #1E293B; color: #fff; text-align: center;
+            padding: 8px 12px; border-radius: 8px; position: absolute; z-index: 50;
+            bottom: 110%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s;
+            white-space: nowrap; font-size: 12px; font-weight: 500; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            pointer-events: none;
+        }
+        .tooltip:hover .tooltip-text { visibility: visible; opacity: 1; }
+        
+        /* Chống bôi đen text khi kéo thả */
+        .select-none { user-select: none; -webkit-user-select: none; }
     </style>
-  </head>
-  <body>
-    <div class="container">
-      <div id="loading">🔄 Đang tải thông tin khảo sát lịch...</div>
+</head>
+<body class="text-slate-800">
 
-      <div id="mainContent" style="display: none">
-        <div class="header">
-          <h1 id="pollTitle">Khảo sát Lịch học</h1>
-          <p id="pollDesc">Vui lòng chọn thời gian rảnh của bạn</p>
-        </div>
-
-        <div class="user-info">
-          <input
-            type="text"
-            id="voterName"
-            placeholder="Tên của bạn (Bắt buộc)"
-          />
-          <input
-            type="email"
-            id="voterEmail"
-            placeholder="Email (Không bắt buộc)"
-          />
-        </div>
-
-        <div class="grid-container" id="pollGrid"></div>
-
-        <button class="btn-submit" onclick="submitVote()">
-          Gửi thời gian rảnh của tôi
-        </button>
-      </div>
+<div class="max-w-7xl mx-auto px-4 py-10 sm:px-6 lg:px-8">
+    
+    <div id="loading" class="text-center py-20 text-slate-500 font-medium text-lg">
+        🔄 Đang tải thông tin khảo sát lịch...
     </div>
 
-    <script>
-      // ==========================================
-      // ⚠️ DÁN ĐƯỜNG LINK BACKEND RENDER CỦA BẠN VÀO ĐÂY
-      // ==========================================
-      const BACKEND_URL = "https://tutorhub-poll-api.onrender.com";
+    <div id="mainContent" style="display: none;">
+        <div class="text-center mb-10">
+            <img src="https://i.postimg.cc/xjtYgsH9/Tutor-Hub-(40-x-40-px)-(512-x-512-px)-(1).png" alt="TutorHub Logo" class="w-16 h-16 mx-auto mb-4 rounded-2xl shadow-sm">
+            <h1 class="text-3xl font-bold text-slate-900 mb-2" id="pollTitle">Đang tải...</h1>
+            <p class="text-slate-500 text-lg" id="pollDesc">Cùng tham gia chọn lịch nhé!</p>
+        </div>
 
-      let globalPollId = null;
-      let isDragging = false;
-      let isSelecting = true;
+        <div class="max-w-2xl mx-auto bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 mb-10">
+            <div class="flex flex-col sm:flex-row gap-4 items-end">
+                <div class="w-full">
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Tên của bạn <span class="text-red-500">*</span></label>
+                    <input type="text" id="voterName" placeholder="VD: Nguyễn Văn A" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all">
+                </div>
+                <div class="w-full">
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Mật khẩu (Tùy chọn)</label>
+                    <input type="password" id="voterPass" placeholder="Dùng để sửa lịch sau này" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all">
+                </div>
+                <button onclick="handleLogin()" class="w-full sm:w-auto px-8 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-all whitespace-nowrap shadow-md">Đăng nhập</button>
+            </div>
+            <p id="loginMsg" class="text-sm mt-3 hidden"></p>
+        </div>
 
-      // Lấy mã unique_code từ tham số URL (?code=XXXXXX)
-      const urlParams = new URLSearchParams(window.location.search);
-      const pollCode = urlParams.get("code");
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+            
+            <div class="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex flex-col h-full">
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <span class="w-3 h-8 bg-violet-500 rounded-full inline-block"></span> Lịch rảnh của bạn
+                    </h2>
+                    <p class="text-sm text-slate-500 mt-1">Nhấp hoặc kéo thả chuột để đánh dấu thời gian rảnh</p>
+                </div>
+                
+                <div class="overflow-x-auto hide-scrollbar border border-slate-100 rounded-xl relative select-none">
+                    <div id="myGrid" class="min-w-[500px]"></div>
+                </div>
 
-      if (!pollCode) {
-        document.getElementById("loading").innerHTML =
-          "❌ Đường link không hợp lệ! Thiếu mã code khảo sát.";
-      } else {
-        loadPollData();
-      }
+                <div class="mt-5 flex items-center gap-6 text-sm font-medium text-slate-600">
+                    <div class="flex items-center gap-2"><div class="w-6 h-6 rounded bg-[#DDD6FE] border border-[#C4B5FD]"></div> Bạn rảnh</div>
+                    <div class="flex items-center gap-2"><div class="w-6 h-6 rounded bg-white border border-slate-200"></div> Chưa chọn</div>
+                </div>
+            </div>
 
-      // Hàm gọi API lấy dữ liệu từ Render
-      async function loadPollData() {
+            <div class="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex flex-col h-full">
+                <div class="mb-6 flex justify-between items-end">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <span class="w-3 h-8 bg-slate-800 rounded-full inline-block"></span> Tổng hợp nhóm
+                        </h2>
+                        <p class="text-sm text-slate-500 mt-1">Màu càng đậm, càng nhiều người rảnh</p>
+                    </div>
+                    <div class="text-sm font-bold text-violet-600 bg-violet-50 px-3 py-1 rounded-lg">
+                        <span id="totalParticipants">0</span> người
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto hide-scrollbar border border-slate-100 rounded-xl relative">
+                    <div id="heatmapGrid" class="min-w-[500px]"></div>
+                </div>
+
+                <div class="mt-5">
+                    <div class="flex justify-between text-xs text-slate-500 font-semibold mb-2">
+                        <span>0 người rảnh</span>
+                        <span>Nhiều người rảnh</span>
+                    </div>
+                    <div class="h-3 rounded-full w-full bg-gradient-to-r from-slate-100 via-[#C4B5FD] to-[#5B21B6]"></div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="text-center">
+            <button id="btnSubmit" onclick="submitAvailability()" class="px-10 py-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold text-lg rounded-[16px] shadow-lg shadow-violet-200 transition-all transform hover:-translate-y-1 w-full sm:w-auto">
+                Gửi thời gian rảnh của tôi
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // CẤU HÌNH API 
+    // ==========================================
+    const BACKEND_URL = "https://tutorhub-poll-api.onrender.com";
+    const urlParams = new URLSearchParams(window.location.search);
+    const pollCode = urlParams.get("code");
+
+    // State ứng dụng
+    let globalPollId = null;
+    let eventData = { dates: [], timeSlots: [], participants: [] };
+    let myAvailability = {}; // { "2026-05-18": ["08:00", "08:30"], ... }
+    
+    // State Kéo thả
+    let isDragging = false;
+    let isSelecting = true; 
+
+    // ==========================================
+    // 1. TẢI DỮ LIỆU TỪ SERVER
+    // ==========================================
+    if (!pollCode) {
+        document.getElementById("loading").innerHTML = "❌ Đường link không hợp lệ! Thiếu mã code khảo sát.";
+    } else {
+        loadData();
+    }
+
+    async function loadData() {
         try {
-          const response = await fetch(`${BACKEND_URL}/api/poll/${pollCode}`);
-          if (!response.ok) throw new Error();
-          const pollData = await response.json();
+            const response = await fetch(`${BACKEND_URL}/api/poll/${pollCode}`);
+            if (!response.ok) throw new Error();
+            const data = await response.json();
 
-          globalPollId = pollData.poll_id;
-          document.getElementById("pollTitle").innerText = pollData.title;
-          document.getElementById("pollDesc").innerText =
-            pollData.description ||
-            "Kéo chuột bôi xanh những khung giờ bạn rảnh nhé!";
+            globalPollId = data.poll_id;
+            document.getElementById("pollTitle").innerText = data.title;
+            document.getElementById("pollDesc").innerText = data.description || "Hãy chọn khung giờ bạn rảnh nhé!";
 
-          const days = JSON.parse(pollData.date_list); // Giải mã mảng JSON ngày
-          const startH = parseInt(pollData.start_time.split(":")[0]);
-          const endH = parseInt(pollData.end_time.split(":")[0]);
+            // Xử lý Ngày
+            eventData.dates = JSON.parse(data.date_list);
+            
+            // Xử lý Giờ (Tạo mảng chia 30 phút từ start_time đến end_time)
+            const startH = parseInt(data.start_time.split(":")[0]);
+            const endH = parseInt(data.end_time.split(":")[0]);
+            for (let h = startH; h < endH; h++) {
+                const hourStr = String(h).padStart(2, "0");
+                eventData.timeSlots.push(`${hourStr}:00`);
+                eventData.timeSlots.push(`${hourStr}:30`);
+            }
 
-          renderGrid(days, startH, endH);
+            // Xử lý Người tham gia (Chuyển đổi dữ liệu JSON từ DB)
+            eventData.participants = data.votes.map(v => ({
+                name: v.voter_name,
+                password: v.password, // Mật khẩu đang mượn tạm cột voter_email trên db
+                availability: JSON.parse(v.available_slots)
+            }));
 
-          document.getElementById("loading").style.display = "none";
-          document.getElementById("mainContent").style.display = "block";
+            document.getElementById('totalParticipants').innerText = eventData.participants.length;
+
+            // Khởi tạo state rỗng cho bản thân
+            eventData.dates.forEach(d => myAvailability[d] = []);
+
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("mainContent").style.display = "block";
+
+            renderMyGrid();
+            renderHeatmap();
         } catch (err) {
-          document.getElementById("loading").innerHTML =
-            "❌ Không tìm thấy cuộc khảo sát hoặc lỗi kết nối máy chủ!";
+            document.getElementById("loading").innerHTML = "❌ Không tìm thấy cuộc khảo sát hoặc lỗi kết nối máy chủ!";
         }
-      }
+    }
 
-      // Hàm vẽ ô lưới lưới tự động
-      function renderGrid(days, startHour, endHour) {
-        const gridContainer = document.getElementById("pollGrid");
-
-        // Vẽ cột giờ bên trái
-        let timeColHtml = `<div class="time-col"><div class="cell-header">Giờ</div>`;
-        for (let h = startHour; h < endHour; h++) {
-          timeColHtml += `<div class="cell">${String(h).padStart(2, "0")}:00</div>`;
-        }
-        timeColHtml += `</div>`;
-        gridContainer.innerHTML += timeColHtml;
-
-        // Vẽ các cột ngày rảnh
-        days.forEach((day) => {
-          // Format ngày hiển thị ngắn gọn
-          let dateObj = new Date(day);
-          let formattedDay = dateObj.toLocaleDateString("vi-VN", {
-            weekday: "short",
-            day: "numeric",
-            month: "numeric",
-          });
-
-          let dayColHtml = `<div class="day-col"><div class="cell-header">${formattedDay}</div>`;
-          for (let h = startHour; h < endHour; h++) {
-            dayColHtml += `<div class="cell poll-cell" data-time="${day} ${String(h).padStart(2, "0")}:00"></div>`;
-            dayColHtml += `<div class="cell poll-cell" data-time="${day} ${String(h).padStart(2, "0")}:30"></div>`;
-          }
-          dayColHtml += `</div>`;
-          gridContainer.innerHTML += dayColHtml;
-        });
-
-        setupDragEvents();
-      }
-
-      function setupDragEvents() {
-        document.addEventListener("mousedown", (e) => {
-          if (e.target.classList.contains("poll-cell")) {
-            isDragging = true;
-            isSelecting = !e.target.classList.contains("selected");
-            e.target.classList.toggle("selected", isSelecting);
-          }
-        });
-
-        document.addEventListener("mouseover", (e) => {
-          if (isDragging && e.target.classList.contains("poll-cell")) {
-            e.target.classList.toggle("selected", isSelecting);
-          }
-        });
-
-        document.addEventListener("mouseup", () => (isDragging = false));
-      }
-
-      // Hàm gọi API gửi kết quả ngược lại lên Render
-      async function submitVote() {
+    // ==========================================
+    // 2. LOGIC ĐĂNG NHẬP (LẤY LẠI LỊCH CŨ)
+    // ==========================================
+    function handleLogin() {
         const name = document.getElementById("voterName").value.trim();
-        const email = document.getElementById("voterEmail").value.trim();
+        const pass = document.getElementById("voterPass").value.trim();
+        const msg = document.getElementById("loginMsg");
 
         if (!name) {
-          alert("Vui lòng nhập tên của bạn!");
-          return;
+            showMessage(msg, "Vui lòng nhập tên của bạn!", "red");
+            return;
         }
 
-        const selectedCells = document.querySelectorAll(".poll-cell.selected");
-        const slots = [];
-        selectedCells.forEach((cell) =>
-          slots.push(cell.getAttribute("data-time")),
-        );
+        const existingUser = eventData.participants.find(p => p.name === name);
+        
+        if (existingUser) {
+            if (existingUser.password && existingUser.password !== pass) {
+                showMessage(msg, "Tên này đã được sử dụng. Vui lòng nhập đúng mật khẩu!", "red");
+                return;
+            }
+            // Mật khẩu đúng -> Nạp lại lịch cũ
+            myAvailability = JSON.parse(JSON.stringify(existingUser.availability));
+            
+            // Nếu có ngày nào mới thêm vào poll mà user chưa có thì khởi tạo mảng rỗng
+            eventData.dates.forEach(d => { if(!myAvailability[d]) myAvailability[d] = []; });
+            
+            showMessage(msg, `Chào mừng trở lại, ${name}! Đã tải lịch rảnh cũ của bạn.`, "green");
+        } else {
+            // Người mới -> Làm sạch lịch
+            eventData.dates.forEach(d => myAvailability[d] = []);
+            showMessage(msg, `Đăng nhập thành công với tên ${name}! Bạn có thể bắt đầu chọn lịch.`, "violet");
+        }
+        renderMyGrid(); // Vẽ lại bảng bên trái
+    }
 
-        if (slots.length === 0) {
-          alert("Bạn chưa bôi đen khung giờ nào rảnh cả!");
-          return;
+    // ==========================================
+    // 3. RENDER BẢNG LỊCH CỦA BẠN (CÓ KÉO THẢ)
+    // ==========================================
+    function renderMyGrid() {
+        const grid = document.getElementById('myGrid');
+        grid.innerHTML = '';
+        grid.style.display = 'grid';
+        grid.style.gridTemplateColumns = `60px repeat(${eventData.dates.length}, minmax(80px, 1fr))`;
+
+        // Hàng 1: Header Ngày
+        grid.appendChild(createCell('', 'bg-slate-50 border-b border-slate-200 sticky left-0 z-20'));
+        eventData.dates.forEach(date => {
+            const dateObj = new Date(date);
+            const formatted = dateObj.toLocaleDateString('vi-VN', { weekday: 'short', day: 'numeric', month: 'numeric' });
+            grid.appendChild(createCell(formatted, 'bg-slate-50 font-bold text-slate-700 border-b border-slate-200 text-center py-3 text-xs sm:text-sm sticky top-0 z-10'));
+        });
+
+        // Hàng 2+: Các khung giờ
+        eventData.timeSlots.forEach(time => {
+            // Cột mốc giờ bên trái
+            const isFullHour = time.endsWith(":00");
+            const timeLabel = isFullHour ? time : ""; // Chỉ hiện chữ ở mốc giờ chẵn cho gọn
+            grid.appendChild(createCell(timeLabel, 'bg-white text-xs font-semibold text-slate-400 border-r border-slate-100 text-right pr-2 py-1 sticky left-0 z-10 ' + (isFullHour ? 'border-t' : '')));
+
+            // Các ô tương tác
+            eventData.dates.forEach(date => {
+                const cell = document.createElement('div');
+                const isSelected = myAvailability[date] && myAvailability[date].includes(time);
+                
+                let baseClass = 'border-r border-slate-100 h-6 transition-colors duration-75 cursor-pointer cell-interactive ' + (isFullHour ? 'border-t' : '');
+                if (isSelected) {
+                    baseClass += ' bg-[#DDD6FE] border-b border-b-[#C4B5FD]';
+                } else {
+                    baseClass += ' bg-white hover:bg-violet-50';
+                }
+
+                cell.className = baseClass;
+                cell.dataset.date = date;
+                cell.dataset.time = time;
+
+                // Cài đặt sự kiện chuột
+                cell.addEventListener('mousedown', (e) => handleMouseDown(e, cell, date, time));
+                cell.addEventListener('mouseenter', (e) => handleMouseEnter(e, cell, date, time));
+                
+                grid.appendChild(cell);
+            });
+        });
+
+        window.addEventListener('mouseup', () => { isDragging = false; });
+    }
+
+    // Logic Kéo thả
+    function handleMouseDown(e, cell, date, time) {
+        e.preventDefault();
+        isDragging = true;
+        const hasTime = myAvailability[date].includes(time);
+        isSelecting = !hasTime;
+        toggleTimeSlot(cell, date, time, isSelecting);
+    }
+
+    function handleMouseEnter(e, cell, date, time) {
+        if (isDragging) {
+            toggleTimeSlot(cell, date, time, isSelecting);
+        }
+    }
+
+    function toggleTimeSlot(cell, date, time, forceSelect) {
+        if (forceSelect) {
+            if (!myAvailability[date].includes(time)) myAvailability[date].push(time);
+            cell.classList.remove('bg-white', 'hover:bg-violet-50');
+            cell.classList.add('bg-[#DDD6FE]', 'border-b-[#C4B5FD]');
+        } else {
+            myAvailability[date] = myAvailability[date].filter(t => t !== time);
+            cell.classList.add('bg-white', 'hover:bg-violet-50');
+            cell.classList.remove('bg-[#DDD6FE]', 'border-b-[#C4B5FD]');
+        }
+    }
+
+    // ==========================================
+    // 4. RENDER BẢNG TỔNG HỢP NHÓM (HEATMAP)
+    // ==========================================
+    function renderHeatmap() {
+        const grid = document.getElementById('heatmapGrid');
+        grid.innerHTML = '';
+        grid.style.display = 'grid';
+        grid.style.gridTemplateColumns = `60px repeat(${eventData.dates.length}, minmax(80px, 1fr))`;
+
+        // Tính toán ma trận
+        const summary = {};
+        let maxCount = 0;
+        
+        eventData.dates.forEach(d => {
+            summary[d] = {};
+            eventData.timeSlots.forEach(t => summary[d][t] = { count: 0, names: [] });
+        });
+
+        eventData.participants.forEach(p => {
+            if(!p.availability) return;
+            for (let date in p.availability) {
+                if(!summary[date]) continue;
+                p.availability[date].forEach(time => {
+                    if(summary[date][time]) {
+                        summary[date][time].count++;
+                        summary[date][time].names.push(p.name);
+                        if (summary[date][time].count > maxCount) maxCount = summary[date][time].count;
+                    }
+                });
+            }
+        });
+
+        // Hàng 1: Header Ngày
+        grid.appendChild(createCell('', 'bg-slate-50 border-b border-slate-200 sticky left-0 z-20'));
+        eventData.dates.forEach(date => {
+            const dateObj = new Date(date);
+            const formatted = dateObj.toLocaleDateString('vi-VN', { weekday: 'short', day: 'numeric', month: 'numeric' });
+            grid.appendChild(createCell(formatted, 'bg-slate-50 font-bold text-slate-700 border-b border-slate-200 text-center py-3 text-xs sm:text-sm sticky top-0 z-10'));
+        });
+
+        // Hàng 2+: Heatmap
+        eventData.timeSlots.forEach(time => {
+            const isFullHour = time.endsWith(":00");
+            const timeLabel = isFullHour ? time : ""; 
+            grid.appendChild(createCell(timeLabel, 'bg-white text-xs font-semibold text-slate-400 border-r border-slate-100 text-right pr-2 py-1 sticky left-0 z-10 ' + (isFullHour ? 'border-t' : '')));
+
+            eventData.dates.forEach(date => {
+                const data = summary[date][time];
+                const cell = document.createElement('div');
+                cell.className = 'border-r border-slate-100 h-6 tooltip relative ' + (isFullHour ? 'border-t' : '');
+                
+                // Thuật toán chia màu sắc độ Heatmap
+                if (data.count > 0) {
+                    const intensity = data.count / maxCount;
+                    let bgColor = '#F5F3FF'; // Rất rất nhạt
+                    if (intensity > 0.2) bgColor = '#EDE9FE';
+                    if (intensity > 0.4) bgColor = '#DDD6FE';
+                    if (intensity > 0.6) bgColor = '#C4B5FD';
+                    if (intensity > 0.8) bgColor = '#8B5CF6';
+                    if (intensity === 1 && maxCount > 1) bgColor = '#5B21B6'; // Cực đậm
+                    
+                    cell.style.backgroundColor = bgColor;
+
+                    // Tooltip hiển thị danh sách tên
+                    const tooltipText = document.createElement('span');
+                    tooltipText.className = 'tooltip-text';
+                    tooltipText.innerHTML = `<span class='text-violet-300'>${date} - ${time}</span><br/><b>${data.count} người rảnh:</b><br/>${data.names.join(', ')}`;
+                    cell.appendChild(tooltipText);
+                } else {
+                    cell.classList.add('bg-white');
+                }
+
+                grid.appendChild(cell);
+            });
+        });
+    }
+
+    // ==========================================
+    // 5. GỬI DỮ LIỆU LÊN SERVER
+    // ==========================================
+    async function submitAvailability() {
+        const nameInput = document.getElementById('voterName').value.trim();
+        const passInput = document.getElementById('voterPass').value.trim();
+        const msg = document.getElementById('loginMsg');
+
+        if (!nameInput) {
+            showMessage(msg, "❌ Vui lòng nhập Tên của bạn trước khi gửi lịch rảnh.", "red");
+            return;
+        }
+
+        let hasSelected = false;
+        let flattenSlots = []; // Gom dữ liệu về cấu trúc mảng 1 chiều nếu cần thiết
+        for (let d in myAvailability) { 
+            if (myAvailability[d].length > 0) hasSelected = true; 
+        }
+        
+        if (!hasSelected) {
+            showMessage(msg, "⚠️ Bạn chưa bôi đen khung giờ rảnh nào trên lịch.", "violet");
+            return;
         }
 
         try {
-          const response = await fetch(`${BACKEND_URL}/api/vote`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              poll_id: globalPollId,
-              voter_name: name,
-              voter_email: email,
-              available_slots: slots,
-            }),
-          });
+            // Nút trạng thái loading
+            const btn = document.getElementById('btnSubmit');
+            const originalText = btn.innerText;
+            btn.innerText = "Đang lưu dữ liệu...";
+            btn.disabled = true;
 
-          const resData = await response.json();
-          if (resData.success) {
-            alert(
-              "🎉 Tuyệt vời! Lịch rảnh của bạn đã được gửi tới Gia sư thành công.",
-            );
-          } else {
-            alert("❌ Có lỗi xảy ra khi gửi dữ liệu.");
-          }
+            const response = await fetch(`${BACKEND_URL}/api/vote`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    poll_id: globalPollId,
+                    voter_name: nameInput,
+                    voter_password: passInput,
+                    available_slots: myAvailability
+                })
+            });
+
+            const resData = await response.json();
+            
+            if (response.status === 403) {
+                showMessage(msg, "❌ Tên này đã được sử dụng. Vui lòng nhập đúng mật khẩu để sửa lịch!", "red");
+                btn.innerText = originalText;
+                btn.disabled = false;
+                return;
+            }
+
+            if (!response.ok) throw new Error();
+
+            // Cập nhật state local ngay lập tức để UI phản hồi nhanh
+            const existingUser = eventData.participants.find(p => p.name === nameInput);
+            if (existingUser) {
+                existingUser.availability = JSON.parse(JSON.stringify(myAvailability));
+                existingUser.password = passInput;
+            } else {
+                eventData.participants.push({
+                    name: nameInput,
+                    password: passInput,
+                    availability: JSON.parse(JSON.stringify(myAvailability))
+                });
+                document.getElementById('totalParticipants').innerText = eventData.participants.length;
+            }
+
+            renderHeatmap(); // Render lại bản đồ nhiệt
+
+            // Nút chuyển trạng thái Success
+            btn.innerText = "✓ Đã gửi thành công";
+            btn.classList.replace('from-violet-600', 'from-emerald-500');
+            btn.classList.replace('to-indigo-600', 'to-emerald-600');
+            btn.classList.replace('shadow-violet-200', 'shadow-emerald-200');
+            
+            showMessage(msg, "🎉 Lịch rảnh của bạn đã được ghi nhận lên hệ thống!", "green");
+
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.classList.replace('from-emerald-500', 'from-violet-600');
+                btn.classList.replace('to-emerald-600', 'to-indigo-600');
+                btn.classList.replace('shadow-emerald-200', 'shadow-violet-200');
+                btn.disabled = false;
+            }, 3000);
+
         } catch (err) {
-          alert("❌ Lỗi kết nối đến Server API!");
+            showMessage(msg, "❌ Có lỗi xảy ra khi kết nối máy chủ. Vui lòng thử lại sau.", "red");
+            document.getElementById('btnSubmit').innerText = "Gửi thời gian rảnh của tôi";
+            document.getElementById('btnSubmit').disabled = false;
         }
-      }
-    </script>
-  </body>
+    }
+
+    // ==========================================
+    // Utils
+    // ==========================================
+    function createCell(text, classes) {
+        const div = document.createElement('div');
+        div.className = classes;
+        div.innerText = text;
+        return div;
+    }
+
+    function showMessage(el, text, color) {
+        el.innerText = text;
+        el.className = `text-sm mt-3 font-medium block text-${color}-600`;
+    }
+</script>
+
+</body>
 </html>
